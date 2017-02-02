@@ -1,7 +1,12 @@
 # Cinemas
 
-[TODO. There will be project description]
+Скрипт для поиска фильмов с высоким рейтингом в прокате.
+---------------------------------------------------------------------------
 
-# Project Goals
+## Запуск:
 
-The code is written for educational purposes. Training course for web-developers - [DEVMAN.org](https://devman.org)
+    python cinemas.py
+
+## Описание:
+
+Скрипт вернёт в консоль 10 фильмов с самым высоким рейтингом, которые идут в кинотеатрах на данный момент.
