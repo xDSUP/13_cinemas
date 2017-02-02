@@ -1,8 +1,14 @@
 import requests
 import random
 import argparse
+import logging
 
 from bs4 import BeautifulSoup
+
+
+LOGGER = logging.getLogger('info')
+logging.basicConfig(format = u'[%(asctime)s] %(levelname)s %(message)s', 
+                    level = logging.DEBUG, filename = 'cinemas.log')
 
 
 def fetch_afisha_page():
@@ -13,21 +19,21 @@ def fetch_afisha_page():
 
 def parse_afisha_list(raw_html):
     html = BeautifulSoup(raw_html, "lxml")
-    films_list = html.findAll(class_='object s-votes-hover-area collapsed')
-    films_info = []
-    for film in films_list:
-        title = film.find(class_='usetags').text
-        count_cinemas = len(film.findAll(class_="b-td-item"))
+    movies_list = html.findAll(class_='object s-votes-hover-area collapsed')
+    movies_info = []
+    for movie in movies_list:
+        movie_title = movie.find(class_='usetags').text
+        count_cinemas = len(movie.findAll(class_="b-td-item"))
         proxies_list = get_proxy()
-        html_kinopoisk = multiconnection(title, proxies_list)
-        rating_ball, rating_count = map(str, (get_rating(html_kinopoisk)))
-        films_info.append({
-            "movie_title" : title,
+        html_rating_page = multiconnection(movie_title, proxies_list)
+        rating_ball, rating_count = map(str, (parse_rating_page(html_rating_page)))
+        movies_info.append({
+            "movie_title" : movie_title,
             "count_cinemas" : count_cinemas,
             "rating_ball" : rating_ball,
             "rating_count" : rating_count
             })
-    return films_info
+    return movies_info
 
 
 def get_proxy():
@@ -38,13 +44,13 @@ def get_proxy():
     return proxies_list
 
 
-def multiconnection(title, proxies_list):
+def multiconnection(movie_title, proxies_list):
     while True:
-        html = connect_to_kinopoisk(title, proxies_list)
+        html = fetch_rating_page(movie_title, proxies_list)
         if html is not None:
             return html
         else:
-            print("reconnect")
+            LOGGER.info("reconnect")
 
 
 def get_random_user_agent():
@@ -58,8 +64,8 @@ def get_random_user_agent():
     return user_agent
 
 
-def connect_to_kinopoisk(title, proxies_list):
-    print("get info %s" % title)
+def fetch_rating_page(title, proxies_list):
+    LOGGER.info("parse : %s" % title)
     try:
         url = "https://www.kinopoisk.ru/index.php"
         params = {'kp_query': title,
@@ -72,7 +78,7 @@ def connect_to_kinopoisk(title, proxies_list):
             'Accept-Language': 'en-US,en;q=0.5',
             'Content-Type': 'application/x-www-form-urlencoded',
             'User-Agent': 'Agent:%s'.format(get_random_user_agent())}
-        film_page = requests.session().get(url, 
+        movie_page = requests.session().get(url, 
                                            params=params,
                                            proxies=proxy,
                                            timeout=timeout,
@@ -83,11 +89,11 @@ def connect_to_kinopoisk(title, proxies_list):
             requests.exceptions.ReadTimeout):
         return None
     else:
-        return film_page.text
+        return movie_page.text
 
 
-def get_rating(film_page):
-    html = BeautifulSoup(film_page, "lxml")
+def parse_rating_page(movie_page):
+    html = BeautifulSoup(movie_page, "lxml")
     rating_ball = html.find(class_="rating_ball")
     rating_ball = 0 if not rating_ball else rating_ball.text
     rating_count = html.find(class_="ratingCount")
@@ -95,12 +101,12 @@ def get_rating(film_page):
     return rating_ball, rating_count
 
 
-def sort_films(movies, count, cinemas_min):
-    films_list = [film for film in movies if film['count_cinemas'] >= cinemas_min]
-    sorted_film =  sorted(films_list,
-                          key=lambda film: film["rating_ball"],
+def sort_movies(movies_info, count, cinemas_min):
+    movies_info = [movie for movie in movies_info if movie['count_cinemas'] >= cinemas_min]
+    sorted_movie =  sorted(movies_list,
+                          key=lambda movie: movie["rating_ball"],
                           reverse=True)
-    return sorted_film[:count]
+    return sorted_movie[:count]
 
 
 def output_movies_to_console(movies):
@@ -126,6 +132,6 @@ def get_args():
 if __name__ == '__main__':
     args = get_args()
     html = fetch_afisha_page()
-    films_list = parse_afisha_list(html)
-    sorted_films = sort_films(films_list, args.movies, args.count)
-    output_movies_to_console(sorted_films)
+    movies_list = parse_afisha_list(html)
+    sorted_movies = sort_movies(movies_list, args.movies, args.count)
+    output_movies_to_console(sorted_movies)
